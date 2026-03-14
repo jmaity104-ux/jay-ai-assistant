@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>JAY AI</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#0b0f19;
+color:white;
+}
+
+.layout{
+display:flex;
+height:100vh;
+}
+
+/* SIDEBAR */
+
+.sidebar{
+width:250px;
+background:#111726;
+padding:20px;
+border-right:1px solid #222;
+}
+
+.sidebar h2{
+font-size:16px;
+margin-bottom:15px;
+}
+
+.sidebar button{
+width:100%;
+padding:10px;
+background:#7c3aed;
+border:none;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+.sidebar ul{
+list-style:none;
+padding:0;
+margin-top:20px;
+}
+
+.sidebar li{
+padding:10px;
+cursor:pointer;
+border-radius:5px;
+}
+
+.sidebar li:hover{
+background:#1a2135;
+}
+
+/* MAIN CHAT */
+
+.main{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+.header{
+padding:15px;
+border-bottom:1px solid #222;
+font-size:20px;
+}
+
+.chat{
+flex:1;
+overflow-y:auto;
+padding:20px;
+}
+
+.msg{
+margin-bottom:15px;
+}
+
+.user{
+text-align:right;
+}
+
+.bubble{
+display:inline-block;
+padding:10px 15px;
+border-radius:10px;
+max-width:60%;
+}
+
+.user .bubble{
+background:#7c3aed;
+}
+
+.bot .bubble{
+background:#1b2235;
+}
+
+/* INPUT AREA */
+
+.input{
+display:flex;
+padding:15px;
+border-top:1px solid #222;
+}
+
+input{
+flex:1;
+padding:10px;
+border:none;
+border-radius:6px;
+}
+
+button.send{
+margin-left:10px;
+padding:10px 15px;
+background:#7c3aed;
+border:none;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* MIC */
+
+#mic{
+margin-left:10px;
+background:#222;
+}
+
+#mic.recording{
+background:red;
+}
+
+/* WAVEFORM */
+
+#wave{
+width:100%;
+height:40px;
+background:#0b0f19;
+}
+
+</style>
+</head>
+
+
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+
+<div class="sidebar">
+
+<h2>Chats</h2>
+
+<button onclick="newChat()">+ New Chat</button>
+
+<ul id="history"></ul>
+
+</div>
+
+
+<!-- MAIN -->
+
+<div class="main">
+
+<div class="header">
+JAY AI
+</div>
+
+
+<div class="chat" id="chat"></div>
+
+<canvas id="wave"></canvas>
+
+
+<div class="input">
+
+<input id="msg" placeholder="Ask JAY AI anything...">
+
+<button class="send" onclick="send()">Send</button>
+
+<button id="mic">🎤</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<script>
+
+/* CHAT STORAGE */
+
+let chats=[]
+let current=[]
+
+function newChat(){
+
+current=[]
+document.getElementById("chat").innerHTML=""
+
+}
+
+/* ADD MESSAGE */
+
+function add(role,text){
+
+const chat=document.getElementById("chat")
+
+const div=document.createElement("div")
+
+div.className="msg "+role
+
+div.innerHTML=`<div class="bubble">${text}</div>`
+
+chat.appendChild(div)
+
+chat.scrollTop=chat.scrollHeight
+
+current.push({role,text})
+
+}
+
+/* SAVE HISTORY */
+
+function saveChat(){
+
+if(current.length===0) return
+
+chats.push([...current])
+
+renderHistory()
+
+}
+
+function renderHistory(){
+
+const list=document.getElementById("history")
+
+list.innerHTML=""
+
+chats.forEach((c,i)=>{
+
+const li=document.createElement("li")
+
+li.textContent="Chat "+(i+1)
+
+li.onclick=()=>loadChat(i)
+
+list.appendChild(li)
+
+})
+
+}
+
+function loadChat(i){
+
+const chat=chats[i]
+
+const box=document.getElementById("chat")
+
+box.innerHTML=""
+
+chat.forEach(m=>add(m.role,m.text))
+
+}
+
+
+/* TEXT MESSAGE */
+
+async function send(){
+
+const input=document.getElementById("msg")
+
+const text=input.value.trim()
+
+if(!text) return
+
+input.value=""
+
+add("user",text)
+
+const res=await fetch("/api/chat",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+messages:[{role:"user",content:text}],
+stream:false
+})
+
+})
+
+const data=await res.json()
+
+add("bot",data.reply)
+
+speak(data.reply)
+
+}
+
+
+/* TEXT TO SPEECH */
+
+function speak(text){
+
+const speech=new SpeechSynthesisUtterance(text)
+
+speech.rate=1
+speech.pitch=1
+
+speechSynthesis.speak(speech)
+
+}
+
+
+/* VOICE RECORDING */
+
+let recorder
+let chunks=[]
+let recording=false
+
+const mic=document.getElementById("mic")
+
+mic.onclick=async()=>{
+
+if(!recording){
+
+const stream=await navigator.mediaDevices.getUserMedia({audio:true})
+
+startWave(stream)
+
+recorder=new MediaRecorder(stream)
+
+chunks=[]
+
+recorder.ondataavailable=e=>{
+chunks.push(e.data)
+}
+
+recorder.start()
+
+mic.classList.add("recording")
+
+recording=true
+
+}else{
+
+recorder.stop()
+
+mic.classList.remove("recording")
+
+recording=false
+
+recorder.onstop=async()=>{
+
+const blob=new Blob(chunks,{type:"audio/webm"})
+
+const form=new FormData()
+
+form.append("audio",blob,"voice.webm")
+
+const res=await fetch("/api/voice",{
+method:"POST",
+body:form
+})
+
+const data=await res.json()
+
+add("user",data.transcript)
+
+add("bot",data.reply)
+
+speak(data.reply)
+
+}
+
+}
+
+}
+
+
+/* WAVEFORM */
+
+let audioCtx
+let analyser
+let dataArray
+
+function startWave(stream){
+
+audioCtx=new AudioContext()
+
+const source=audioCtx.createMediaStreamSource(stream)
+
+analyser=audioCtx.createAnalyser()
+
+source.connect(analyser)
+
+dataArray=new Uint8Array(analyser.frequencyBinCount)
+
+drawWave()
+
+}
+
+function drawWave(){
+
+requestAnimationFrame(drawWave)
+
+analyser.getByteFrequencyData(dataArray)
+
+const canvas=document.getElementById("wave")
+
+const ctx=canvas.getContext("2d")
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+dataArray.forEach((v,i)=>{
+
+const h=v/2
+
+ctx.fillStyle="#7c3aed"
+
+ctx.fillRect(i*3,40-h,2,h)
+
+})
+
+}
+
+</script>
+
+</body>
+</html>
