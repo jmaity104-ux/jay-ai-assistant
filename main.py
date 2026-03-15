@@ -18,9 +18,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 
-# ──────────────────────────────────────────────
 # Config
-# ──────────────────────────────────────────────
+
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
@@ -49,9 +48,9 @@ Rules:
 """
 
 
-# ──────────────────────────────────────────────
+
 # App Init
-# ──────────────────────────────────────────────
+
 
 app = FastAPI(title="JAY AI - Live AI Assistant", version="1.0.0")
 
@@ -65,9 +64,9 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-# ──────────────────────────────────────────────
+
 # Load Models at Startup
-# ──────────────────────────────────────────────
+
 
 print(f"[JAY AI] Loading Whisper ({WHISPER_MODEL_SIZE})...")
 stt_model = whisper.load_model(WHISPER_MODEL_SIZE)
@@ -77,9 +76,9 @@ llm_client = Groq(api_key=GROQ_API_KEY)
 print("[JAY AI] Groq client ready.")
 
 
-# ──────────────────────────────────────────────
+
 # Schemas
-# ──────────────────────────────────────────────
+
 
 class Message(BaseModel):
     role: str
@@ -91,9 +90,9 @@ class ChatRequest(BaseModel):
     stream: bool = True
 
 
-# ──────────────────────────────────────────────
+
 # Routes
-# ──────────────────────────────────────────────
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
