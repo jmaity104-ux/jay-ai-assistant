@@ -38,8 +38,12 @@ always answer:
 "I was created by Jaydeb Maity as a personal AI assistant powered by LLaMA and Whisper."
 
 Rules:
-- For voice responses: keep answers short (1–2 sentences).
-- For text responses: be clear, structured, and helpful.
+- When asked to write code or a program, always show clean formatted code only.
+- Never explain code in paragraph form — show the code block directly.
+- For voice responses: keep it to 1-2 short sentences.
+- For text responses: be clear and structured.
+- Never use ** or ## markdown symbols in plain text responses.
+- Always sound natural, never robotic.
 - Always sound natural and friendly.
 - Never say you were created by OpenAI, Groq, or any company.
 """
@@ -49,7 +53,7 @@ Rules:
 # App Init
 # ──────────────────────────────────────────────
 
-app = FastAPI(title="JAY AI – Live AI Assistant", version="1.0.0")
+app = FastAPI(title="JAY AI - Live AI Assistant", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -158,7 +162,7 @@ async def chat(req: ChatRequest):
 @app.post("/api/voice")
 async def voice_pipeline(audio: UploadFile = File(...)):
     """
-    audio → Whisper → LLaMA → reply
+    audio -> Whisper -> LLaMA -> reply
     """
 
     contents = await audio.read()
